@@ -1,0 +1,14 @@
+CREATE USER: 
+
+$body = @{
+    name = "testuser"
+    email = "test@example.com"
+    password = "password123"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:8080/api/users" -Method Post -Body $body -ContentType "application/json"
+
+
+GET USERS:
+
+Invoke-RestMethod -Uri "http://localhost:8080/api/users" -Method Get
