@@ -46,9 +46,16 @@ public class DatabaseInitializer {
             );
             
             Set<Role> roles = new HashSet<>();
+            // Add ADMIN role
             Role adminRole = roleRepository.findByRole(ERole.ROLE_ADMIN)
                     .orElseThrow(() -> new RuntimeException("Error: Admin Role not found."));
             roles.add(adminRole);
+            
+            // Also add USER role to admin so they can access user routes too
+            Role userRole = roleRepository.findByRole(ERole.ROLE_USER)
+                    .orElseThrow(() -> new RuntimeException("Error: User Role not found."));
+            roles.add(userRole);
+            
             adminUser.setRoles(roles);
             
             userRepository.save(adminUser);

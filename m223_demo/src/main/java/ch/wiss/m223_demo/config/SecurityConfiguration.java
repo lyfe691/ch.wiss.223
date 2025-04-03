@@ -92,7 +92,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/*.png", "/*.gif", "/*.svg", "/*.jpg", "/*.html", "/*.css", "/*.js").permitAll()
                 
                 // Protected endpoints
-                .requestMatchers("/private/**").hasRole("USER")
+                .requestMatchers("/private/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             );
