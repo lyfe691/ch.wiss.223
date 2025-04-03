@@ -50,6 +50,15 @@
             padding: 10px;
             font-family: "Courier New", monospace;
             overflow: auto;
+            min-height: 100px;
+        }
+        .error {
+            color: #ff0000;
+            font-weight: bold;
+        }
+        .success {
+            color: #00ff00;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -106,6 +115,49 @@
         let token = null;
         const responseDiv = document.getElementById('response');
 
+        // Helper function to display errors properly
+        function displayError(message) {
+            responseDiv.innerHTML = `<span class="error">${message}</span>`;
+        }
+
+        // Helper function to display success messages
+        function displaySuccess(message) {
+            responseDiv.innerHTML = `<span class="success">${message}</span>`;
+        }
+
+        // Helper function to handle API responses
+        async function handleResponse(response) {
+            const contentType = response.headers.get("content-type");
+            
+            if (contentType && contentType.includes("application/json")) {
+                try {
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        if (data.message) {
+                            displayError(data.message);
+                        } else {
+                            displayError(`Error: ${response.status} - ${response.statusText}`);
+                        }
+                        return null;
+                    }
+                    
+                    return data;
+                } catch (e) {
+                    displayError(`Error parsing JSON response: ${e.message}`);
+                    return null;
+                }
+            } else {
+                // Handle text response
+                const text = await response.text();
+                if (!response.ok) {
+                    displayError(`Error: ${response.status} - ${response.statusText}\n${text}`);
+                    return null;
+                }
+                return text;
+            }
+        }
+
         // Register Form
         document.getElementById('registerForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -127,10 +179,12 @@
                     })
                 });
 
-                const data = await response.json();
-                responseDiv.textContent = JSON.stringify(data, null, 2);
+                const data = await handleResponse(response);
+                if (data) {
+                    responseDiv.textContent = JSON.stringify(data, null, 2);
+                }
             } catch (error) {
-                responseDiv.textContent = 'Error: ' + error.message;
+                displayError(`Error: ${error.message}`);
             }
         });
 
@@ -153,11 +207,18 @@
                     })
                 });
 
-                const data = await response.json();
-                token = data.accessToken; // Save the token
-                responseDiv.textContent = JSON.stringify(data, null, 2);
+                const data = await handleResponse(response);
+                if (data) {
+                    if (data.accessToken) {
+                        token = data.accessToken; // Save the token
+                        responseDiv.textContent = JSON.stringify(data, null, 2);
+                        displaySuccess(`Successfully logged in as ${data.username}`);
+                    } else {
+                        responseDiv.textContent = JSON.stringify(data, null, 2);
+                    }
+                }
             } catch (error) {
-                responseDiv.textContent = 'Error: ' + error.message;
+                displayError(`Network error: ${error.message}`);
             }
         });
 
@@ -165,17 +226,19 @@
         document.getElementById('publicBtn').addEventListener('click', async () => {
             try {
                 const response = await fetch('/public');
-                const text = await response.text();
-                responseDiv.textContent = text;
+                const data = await handleResponse(response);
+                if (data) {
+                    responseDiv.textContent = data;
+                }
             } catch (error) {
-                responseDiv.textContent = 'Error: ' + error.message;
+                displayError(`Error: ${error.message}`);
             }
         });
 
         // Private Button
         document.getElementById('privateBtn').addEventListener('click', async () => {
             if (!token) {
-                responseDiv.textContent = 'Please login first to get a token';
+                displayError('Please login first to get a token');
                 return;
             }
 
@@ -186,23 +249,23 @@
                     }
                 });
                 
-                const text = await response.text();
-                try {
-                    // Try to parse as JSON, but fallback to text if not valid JSON
-                    const data = JSON.parse(text);
-                    responseDiv.textContent = JSON.stringify(data, null, 2);
-                } catch (e) {
-                    responseDiv.textContent = text;
+                const data = await handleResponse(response);
+                if (data) {
+                    if (typeof data === 'object') {
+                        responseDiv.textContent = JSON.stringify(data, null, 2);
+                    } else {
+                        responseDiv.textContent = data;
+                    }
                 }
             } catch (error) {
-                responseDiv.textContent = 'Error: ' + error.message;
+                displayError(`Error: ${error.message}`);
             }
         });
 
         // Admin Button
         document.getElementById('adminBtn').addEventListener('click', async () => {
             if (!token) {
-                responseDiv.textContent = 'Please login first to get a token';
+                displayError('Please login first to get a token');
                 return;
             }
 
@@ -212,16 +275,17 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
-                const text = await response.text();
-                try {
-                    // Try to parse as JSON, but fallback to text if not valid JSON
-                    const data = JSON.parse(text);
-                    responseDiv.textContent = JSON.stringify(data, null, 2);
-                } catch (e) {
-                    responseDiv.textContent = text;
+                
+                const data = await handleResponse(response);
+                if (data) {
+                    if (typeof data === 'object') {
+                        responseDiv.textContent = JSON.stringify(data, null, 2);
+                    } else {
+                        responseDiv.textContent = data;
+                    }
                 }
             } catch (error) {
-                responseDiv.textContent = 'Error: ' + error.message;
+                displayError(`Error: ${error.message}`);
             }
         });
     </script>
