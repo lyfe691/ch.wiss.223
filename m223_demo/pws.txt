@@ -1,14 +1,78 @@
-CREATE USER: 
+# 1. Test public endpoint to make sure the app is running
+try {
+    $publicResponse = Invoke-RestMethod -Uri "http://localhost:8080/public" -Method Get
+    Write-Host "Public endpoint accessible: $publicResponse"
+} catch {
+    Write-Host "Failed to access public endpoint. Is the application running?"
+    exit
+}
 
-$body = @{
-    name = "testuser"
-    email = "test@example.com"
-    password = "password123"
-} | ConvertTo-Json
+# 2. Register a new user with better formatted JSON
+$registerBody = @"
+{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123"
+}
+"@
 
-Invoke-RestMethod -Uri "http://localhost:8080/api/users" -Method Post -Body $body -ContentType "application/json"
+try {
+    $signupResponse = Invoke-RestMethod -Uri "http://localhost:8080/api/auth/signup" -Method Post -Body $registerBody -ContentType "application/json"
+    Write-Host "Registration successful: $signupResponse"
+} catch {
+    Write-Host "Registration failed with status: $($_.Exception.Response.StatusCode.value__)"
+    
+    # Try to get more detailed error information
+    try {
+        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $reader.BaseStream.Position = 0
+        $reader.DiscardBufferedData()
+        $responseBody = $reader.ReadToEnd()
+        Write-Host "Error details: $responseBody"
+    } catch {
+        Write-Host "Could not read error details"
+    }
+    
+    # Continue with login to see if the user might already exist
+}
 
+# 3. Login to get JWT token
+$loginBody = @"
+{
+    "username": "testuser",
+    "password": "password123"
+}
+"@
 
-GET USERS:
-
-Invoke-RestMethod -Uri "http://localhost:8080/api/users" -Method Get
+try {
+    $response = Invoke-RestMethod -Uri "http://localhost:8080/api/auth/signin" -Method Post -Body $loginBody -ContentType "application/json"
+    Write-Host "Login successful"
+    
+    # Store the token
+    $token = $response.accessToken
+    
+    # 4. Access private endpoint with token
+    $headers = @{
+        Authorization = "Bearer $token"
+    }
+    
+    try {
+        $privateResponse = Invoke-RestMethod -Uri "http://localhost:8080/private" -Method Get -Headers $headers
+        Write-Host "Private endpoint access successful: $privateResponse"
+    } catch {
+        Write-Host "Private endpoint access failed with status: $($_.Exception.Response.StatusCode.value__)"
+    }
+    
+} catch {
+    Write-Host "Login failed with status: $($_.Exception.Response.StatusCode.value__)"
+    
+    try {
+        $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $reader.BaseStream.Position = 0
+        $reader.DiscardBufferedData()
+        $responseBody = $reader.ReadToEnd()
+        Write-Host "Error details: $responseBody"
+    } catch {
+        Write-Host "Could not read error details"
+    }
+}
